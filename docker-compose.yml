@@ -1,0 +1,12 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      # On some Linux setups BuildKit DNS fails (npm EAI_AGAIN). Remove if you do not need it.
+      network: host
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+    restart: unless-stopped
