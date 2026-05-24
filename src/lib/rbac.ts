@@ -44,6 +44,12 @@ export const PERMISSIONS = {
   "analytics.view": ["admin", "manager"],
   "dashboard.view": ["admin", "manager"],
 
+  // Orders
+  "orders.read": ["admin", "manager", "staff"],
+  "orders.create": ["admin", "manager", "staff"],
+  "orders.close": ["admin", "manager", "staff"],
+  "orders.delete": ["admin", "manager"],
+
   // Audit
   "audit.view": ["admin"],
 } as const satisfies Record<string, readonly Role[]>
@@ -65,6 +71,7 @@ export const ROUTE_ACCESS: Record<string, readonly Role[]> = {
   "/menu": ["admin", "manager", "staff"],
   "/staff": ["admin", "manager", "staff"],
   "/tasks": ["admin", "manager", "staff"],
+  "/orders": ["admin", "manager", "staff"],
   "/audit": ["admin"],
 }
 
