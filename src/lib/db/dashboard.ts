@@ -11,17 +11,23 @@ export async function getDashboardStats(): Promise<DashboardStats> {
   const supabase = await createClient()
   const today = new Date().toISOString().slice(0, 10)
 
-  const [productsResult, schedulesResult, tasksResult] = await Promise.all([
+  const [productsResult, shiftsResult, tasksResult, ordersResult] = await Promise.all([
     supabase.from("products").select("quantity, min_quantity"),
     supabase
-      .from("schedules")
+      .from("shifts")
       .select("id", { count: "exact", head: true })
-      .eq("date", today)
-      .eq("status", "active"),
+      .eq("work_date", today)
+      .neq("shift_type", "day_off"),
     supabase
       .from("tasks")
       .select("id", { count: "exact", head: true })
       .eq("status", "pending"),
+    supabase
+      .from("orders")
+      .select("total")
+      .eq("status", "closed")
+      .gte("created_at", `${today}T00:00:00`)
+      .lte("created_at", `${today}T23:59:59`),
   ])
 
   const lowStockCount =
@@ -29,10 +35,13 @@ export async function getDashboardStats(): Promise<DashboardStats> {
       (item) => Number(item.quantity) <= Number(item.min_quantity),
     ).length ?? 0
 
+  const todayRevenue =
+    ordersResult.data?.reduce((sum, o) => sum + Number(o.total), 0) ?? 0
+
   return {
-    todayRevenue: 0,
+    todayRevenue,
     lowStockCount,
-    staffOnShift: schedulesResult.count ?? 0,
+    staffOnShift: shiftsResult.count ?? 0,
     pendingTasks: tasksResult.count ?? 0,
   }
 }
