@@ -112,11 +112,11 @@ export function TasksView({ initialRows, role, currentUserId, assignees }: Tasks
   const [deleteTarget, setDeleteTarget] = React.useState<TaskRow | null>(null)
   const [deleting, setDeleting] = React.useState(false)
 
-  React.useEffect(() => { setRows(initialRows) }, [initialRows])
-
-  const visibleRows = rows.filter((r) =>
-    tab === "active" ? r.status !== "done" : r.status === "done"
-  )
+  const visibleRows = rows.filter((r) => {
+    const visibleForRole = canSeeAll || r.assigned_to === null || r.assigned_to === currentUserId
+    const visibleForTab = tab === "active" ? r.status !== "done" : r.status === "done"
+    return visibleForRole && visibleForTab
+  })
 
   function resetAddForm() {
     setTitle(""); setDescription(""); setDueDate(""); setAddAssignee(EVERYONE); setError(null)
@@ -148,9 +148,25 @@ export function TasksView({ initialRows, role, currentUserId, assignees }: Tasks
 
   async function handleStart(row: TaskRow) {
     setBusyId(row.id)
-    await runWithToast(() => startTask(row.id), { success: `Started: ${row.title}` })
+    const result = await runWithToast(() => startTask(row.id), { success: `Started: ${row.title}` })
+    if (result.ok) {
+      const assignee = assignees.find((a) => a.id === result.data.assigned_to)
+      setRows((prev) =>
+        prev.map((task) =>
+          task.id === row.id
+            ? {
+                ...task,
+                status: "in_progress",
+                assigned_to: result.data.assigned_to,
+                assignee_label: assignee?.label ?? "Me",
+                assigned_at: result.data.started_at,
+                started_at: result.data.started_at,
+              }
+            : task
+        )
+      )
+    }
     setBusyId(null)
-    router.refresh()
   }
 
   async function handleComplete(row: TaskRow) {
@@ -186,10 +202,12 @@ export function TasksView({ initialRows, role, currentUserId, assignees }: Tasks
 
   function rowActions(row: TaskRow): React.ReactNode {
     const isMine = row.assigned_to === currentUserId
-    const canActOnTask = canManage || isMine
+    const isForEveryone = row.assigned_to === null
+    const canStartTask = canManage || isMine || isForEveryone
+    const canFinishTask = canManage || isMine
     const buttons: React.ReactNode[] = []
 
-    if (row.status === "pending" && canActOnTask) {
+    if (row.status === "pending" && canStartTask) {
       buttons.push(
         <Button
           key="start"
@@ -204,7 +222,7 @@ export function TasksView({ initialRows, role, currentUserId, assignees }: Tasks
         </Button>
       )
     }
-    if (row.status === "in_progress" && canActOnTask) {
+    if (row.status === "in_progress" && canFinishTask) {
       buttons.push(
         <Button
           key="complete"

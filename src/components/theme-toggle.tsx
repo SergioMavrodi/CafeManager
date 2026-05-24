@@ -12,7 +12,7 @@ export function ThemeToggle() {
     const stored = localStorage.getItem("theme")
     const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches
     const isDark = stored ? stored === "dark" : prefersDark
-    setDark(isDark)
+    setTimeout(() => setDark(isDark), 0)
     document.documentElement.classList.toggle("dark", isDark)
   }, [])
 

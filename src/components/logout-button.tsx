@@ -13,7 +13,7 @@ export function LogoutButton() {
         variant="ghost"
         size="icon"
         className="size-9"
-        aria-label="Выйти"
+        aria-label="Sign out"
       >
         <LogOut className="size-4" aria-hidden />
       </Button>
