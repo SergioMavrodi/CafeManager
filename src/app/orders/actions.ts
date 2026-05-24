@@ -12,13 +12,26 @@ export type CartItem = {
   quantity: number
 }
 
-export async function createOrder(tableId: string, tableNumber: number, items: CartItem[], note?: string, waiterId?: string, waiterName?: string) {
+export async function createOrder(tableId: string, tableNumber: number, items: CartItem[], note?: string) {
   const ctx = await getAuthContext()
   if (!ctx) throw new Error("Not authenticated")
 
   const supabase = await createClient()
 
   const total = items.reduce((sum, i) => sum + i.price * i.quantity, 0)
+  const { data: staffProfile } = await supabase
+    .from("staff")
+    .select("id, name")
+    .eq("email", ctx.email)
+    .maybeSingle()
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("full_name")
+    .eq("id", ctx.profileId)
+    .maybeSingle()
+
+  const waiterName = staffProfile?.name || profile?.full_name || ctx.email
 
   const { data: order, error: orderErr } = await supabase
     .from("orders")
@@ -29,8 +42,8 @@ export async function createOrder(tableId: string, tableNumber: number, items: C
       note: note || null,
       opened_by: ctx.profileId,
       opened_by_email: ctx.email,
-      waiter_id: waiterId || null,
-      waiter_name: waiterName || null,
+      waiter_id: staffProfile?.id ?? null,
+      waiter_name: waiterName,
       status: "open",
     })
     .select()
@@ -53,7 +66,61 @@ export async function createOrder(tableId: string, tableNumber: number, items: C
   await supabase.from("cafe_tables").update({ status: "occupied" }).eq("id", tableId)
 
   revalidatePath("/orders")
-  return order
+  return {
+    ...order,
+    order_items: orderItems.map((item, index) => ({
+      id: `${order.id}-${index}`,
+      name: item.name,
+      price: item.price,
+      quantity: item.quantity,
+    })),
+  }
+}
+
+export async function addItemsToOrder(orderId: string, items: CartItem[]) {
+  if (!(await getAuthContext())) throw new Error("Not authenticated")
+  if (items.length === 0) throw new Error("No items selected")
+
+  const supabase = await createClient()
+
+  const { data: order, error: orderErr } = await supabase
+    .from("orders")
+    .select("id, total, status")
+    .eq("id", orderId)
+    .single()
+
+  if (orderErr || !order) throw new Error(orderErr?.message ?? "Order not found")
+  if (order.status !== "open") throw new Error("Only open orders can be updated")
+
+  const orderItems = items.map((i) => ({
+    order_id: orderId,
+    menu_item_id: i.menu_item_id,
+    name: i.name,
+    price: i.price,
+    quantity: i.quantity,
+  }))
+
+  const { error: itemsErr } = await supabase.from("order_items").insert(orderItems)
+  if (itemsErr) throw new Error(itemsErr.message)
+
+  const extraTotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0)
+  const { error: updateErr } = await supabase
+    .from("orders")
+    .update({ total: Number(order.total) + extraTotal })
+    .eq("id", orderId)
+
+  if (updateErr) throw new Error(updateErr.message)
+
+  revalidatePath("/orders")
+  return {
+    extraTotal,
+    order_items: orderItems.map((item, index) => ({
+      id: `${orderId}-extra-${Date.now()}-${index}`,
+      name: item.name,
+      price: item.price,
+      quantity: item.quantity,
+    })),
+  }
 }
 
 export async function closeOrder(orderId: string) {
