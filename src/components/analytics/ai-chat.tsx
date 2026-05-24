@@ -2,7 +2,6 @@
 
 import * as React from "react"
 import { Send } from "lucide-react"
-import ReactMarkdown from "react-markdown"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -13,10 +12,14 @@ type Message = {
 }
 
 const quickPrompts = [
-  "What's the current stock situation?",
-  "How many tasks are pending?",
-  "Give me a business summary",
   "What needs attention today?",
+  "Which products are running low?",
+  "Order products that are low",
+  "Generate shifts for next week",
+  "Create task check refrigerators",
+  "Restock low inventory and create purchase tasks",
+  "Give me revenue recommendations",
+  "Which waiter generated the most revenue?",
 ]
 
 export function AIChat() {
@@ -58,25 +61,25 @@ export function AIChat() {
   }
 
   return (
-    <div className="rounded-xl border bg-card ring-1 ring-foreground/10 flex flex-col h-[500px]">
-      <div className="flex items-center justify-between px-4 py-3 border-b">
+    <div className="rounded-xl border border-amber-500/10 bg-card/80 ring-1 ring-foreground/10 backdrop-blur flex flex-col h-[620px]">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-amber-500/10">
         <div>
-          <h2 className="text-sm font-semibold">AI Business Assistant</h2>
-          <p className="text-xs text-muted-foreground">Powered by Groq</p>
+          <h2 className="text-sm font-semibold">Cafe AI Assistant</h2>
+          <p className="text-xs text-muted-foreground">Only cafe analytics, stock, revenue, menu and recommendations</p>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {messages.length === 0 && (
           <div className="space-y-3">
-            <p className="text-sm text-muted-foreground text-center">Ask anything about your cafe</p>
+            <p className="text-sm text-muted-foreground text-center">Ask about this cafe only</p>
             <div className="flex flex-wrap gap-2 justify-center">
               {quickPrompts.map((p) => (
                 <button
                   key={p}
                   type="button"
                   onClick={() => sendMessage(p)}
-                  className="text-xs border rounded-full px-3 py-1.5 text-muted-foreground hover:text-foreground hover:border-foreground/30 transition"
+                  className="text-xs border border-amber-500/15 rounded-full px-3 py-1.5 text-muted-foreground hover:text-foreground hover:border-amber-500/40 hover:bg-amber-500/10 transition"
                 >
                   {p}
                 </button>
@@ -88,16 +91,10 @@ export function AIChat() {
           <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
             <div className={`max-w-[80%] rounded-xl px-3 py-2 text-sm ${
               msg.role === "user"
-                ? "bg-primary text-primary-foreground"
+                ? "bg-gradient-to-br from-amber-500 to-orange-600 text-white"
                 : "bg-muted text-foreground"
             }`}>
-              {msg.role === "assistant" ? (
-                <div className="prose prose-sm dark:prose-invert max-w-none">
-                  <ReactMarkdown>{msg.content}</ReactMarkdown>
-                </div>
-              ) : (
-                msg.content
-              )}
+              <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
             </div>
           </div>
         ))}
@@ -111,11 +108,11 @@ export function AIChat() {
         <div ref={bottomRef} />
       </div>
 
-      <form onSubmit={handleSubmit} className="flex gap-2 p-3 border-t">
+      <form onSubmit={handleSubmit} className="flex gap-2 p-3 border-t border-amber-500/10">
         <Input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask about sales, stock, tasks..."
+          placeholder="Ask about cafe revenue, stock, menu..."
           disabled={loading}
           className="flex-1"
         />

@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   LogOut,
   Package,
+  ShoppingCart,
   UtensilsCrossed,
   Users,
 } from "lucide-react"
@@ -34,18 +35,21 @@ import {
 const allNavItems = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { title: "Tasks", href: "/tasks", icon: ClipboardList },
+  { title: "Orders", href: "/orders", icon: ShoppingCart },
   { title: "Inventory", href: "/inventory", icon: Package },
   { title: "Menu", href: "/menu", icon: UtensilsCrossed },
   { title: "Staff", href: "/staff", icon: Users },
+  { title: "Revenue", href: "/revenue", icon: BarChart3 },
   { title: "Analytics", href: "/analytics", icon: BarChart3 },
   { title: "Audit", href: "/audit", icon: History },
 ] as const
 
 type CafeAppSidebarProps = {
   role?: Role
+  variant?: "sidebar" | "floating" | "inset"
 }
 
-export function CafeAppSidebar({ role = "staff" }: CafeAppSidebarProps) {
+export function CafeAppSidebar({ role = "staff", variant }: CafeAppSidebarProps) {
   const pathname = usePathname()
   const navItems = allNavItems.filter((item) => {
     const allowed = ROUTE_ACCESS[item.href]
@@ -53,7 +57,7 @@ export function CafeAppSidebar({ role = "staff" }: CafeAppSidebarProps) {
   })
 
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar collapsible="icon" variant={variant} style={{ "--sidebar-width": "13rem" } as React.CSSProperties}>
       <SidebarHeader className="border-b border-sidebar-border">
         <div className="flex items-center gap-2 px-2 py-1.5">
           <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">

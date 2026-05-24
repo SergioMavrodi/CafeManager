@@ -98,8 +98,6 @@ export function StaffView({ initialRows, role, currentUserId }: StaffViewProps) 
   const [deleting, setDeleting] = React.useState(false)
   const [deleteAlsoAccount, setDeleteAlsoAccount] = React.useState(true)
 
-  React.useEffect(() => { setRows(initialRows) }, [initialRows])
-
   // ---- Add staff ----
   function resetAddForm() {
     setAddName(""); setAddRole(""); setAddPhone(""); setAddEmail(""); setAddError(null)

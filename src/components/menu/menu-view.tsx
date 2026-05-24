@@ -85,7 +85,15 @@ export function MenuView({ initialRows, role = "staff" }: MenuViewProps) {
   const [deleteId, setDeleteId] = React.useState<string | null>(null)
   const [deleting, setDeleting] = React.useState(false)
 
-  React.useEffect(() => { setRows(initialRows) }, [initialRows])
+  const groupedRows = React.useMemo(() => {
+    const map = new Map<string, MenuRow[]>()
+    for (const row of rows) {
+      const category = row.category || "Other"
+      if (!map.has(category)) map.set(category, [])
+      map.get(category)!.push(row)
+    }
+    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]))
+  }, [rows])
 
   function resetAdd() {
     setAddName(""); setAddCategory(""); setAddPrice(""); setAddCost(""); setAddError(null)
@@ -186,77 +194,82 @@ export function MenuView({ initialRows, role = "staff" }: MenuViewProps) {
           <p className="text-muted-foreground text-sm">No menu items yet.</p>
         </div>
       ) : (
-        <div className="rounded-xl border bg-card ring-1 ring-foreground/10">
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead>Name</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead className="text-right">Price</TableHead>
-                <TableHead className="text-right">Cost</TableHead>
-                <TableHead>Available</TableHead>
-                <TableHead className="w-20" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  className="cursor-pointer"
-                  onClick={() => setDetailRow(row)}
-                >
-                  <TableCell className="font-medium">{row.name}</TableCell>
-                  <TableCell className="text-muted-foreground">{row.category}</TableCell>
-                  <TableCell className="text-right tabular-nums">${Number(row.price).toFixed(2)}</TableCell>
-                  <TableCell className="text-right tabular-nums text-muted-foreground">${Number(row.cost_price).toFixed(2)}</TableCell>
-                  <TableCell onClick={(e) => e.stopPropagation()}>
-                    {canWrite ? (
-                      <button
-                        onClick={() => handleToggle(row)}
-                        disabled={loadingId === row.id}
-                        className="disabled:opacity-50"
-                      >
-                        {row.is_available ? (
-                          <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 text-emerald-900 dark:text-emerald-200">Available</Badge>
+        <div className="space-y-5">
+          {groupedRows.map(([category, categoryRows]) => (
+            <div key={category} className="rounded-xl border bg-card ring-1 ring-foreground/10">
+              <div className="border-b px-4 py-3">
+                <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">{category}</h2>
+              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead>Name</TableHead>
+                    <TableHead className="text-right">Price</TableHead>
+                    <TableHead className="text-right">Cost</TableHead>
+                    <TableHead>Available</TableHead>
+                    <TableHead className="w-20" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {categoryRows.map((row) => (
+                    <TableRow
+                      key={row.id}
+                      className="cursor-pointer"
+                      onClick={() => setDetailRow(row)}
+                    >
+                      <TableCell className="font-medium">{row.name}</TableCell>
+                      <TableCell className="text-right tabular-nums">{Number(row.price).toFixed(2)} KGS</TableCell>
+                      <TableCell className="text-right tabular-nums text-muted-foreground">{Number(row.cost_price).toFixed(2)} KGS</TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        {canWrite ? (
+                          <button
+                            onClick={() => handleToggle(row)}
+                            disabled={loadingId === row.id}
+                            className="disabled:opacity-50"
+                          >
+                            {row.is_available ? (
+                              <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 text-emerald-900 dark:text-emerald-200">Available</Badge>
+                            ) : (
+                              <Badge variant="outline" className="border-red-500/40 bg-red-500/10 text-red-900 dark:text-red-200">Hidden</Badge>
+                            )}
+                          </button>
                         ) : (
-                          <Badge variant="outline" className="border-red-500/40 bg-red-500/10 text-red-900 dark:text-red-200">Hidden</Badge>
+                          row.is_available ? (
+                            <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 text-emerald-900 dark:text-emerald-200">Available</Badge>
+                          ) : (
+                            <Badge variant="outline" className="border-red-500/40 bg-red-500/10 text-red-900 dark:text-red-200">Hidden</Badge>
+                          )
                         )}
-                      </button>
-                    ) : (
-                      row.is_available ? (
-                        <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 text-emerald-900 dark:text-emerald-200">Available</Badge>
-                      ) : (
-                        <Badge variant="outline" className="border-red-500/40 bg-red-500/10 text-red-900 dark:text-red-200">Hidden</Badge>
-                      )
-                    )}
-                  </TableCell>
-                  <TableCell onClick={(e) => e.stopPropagation()}>
-                    {canWrite && (
-                      <div className="flex gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="size-8"
-                          onClick={() => openEdit(row)}
-                        >
-                          <Pencil className="size-4" aria-hidden />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="size-8 text-muted-foreground hover:text-destructive"
-                          disabled={loadingId === row.id}
-                          onClick={() => setDeleteId(row.id)}
-                        >
-                          <Trash2 className="size-4" aria-hidden />
-                        </Button>
-                      </div>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                      </TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        {canWrite && (
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-8"
+                              onClick={() => openEdit(row)}
+                            >
+                              <Pencil className="size-4" aria-hidden />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-8 text-muted-foreground hover:text-destructive"
+                              disabled={loadingId === row.id}
+                              onClick={() => setDeleteId(row.id)}
+                            >
+                              <Trash2 className="size-4" aria-hidden />
+                            </Button>
+                          </div>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          ))}
         </div>
       )}
 
@@ -281,12 +294,12 @@ export function MenuView({ initialRows, role = "staff" }: MenuViewProps) {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="grid gap-2">
-                    <Label htmlFor="m-price">Price ($)</Label>
-                    <Input id="m-price" type="number" min={0} step={0.01} placeholder="4.50" value={addPrice} onChange={(e) => setAddPrice(e.target.value)} required />
+                    <Label htmlFor="m-price">Price (KGS)</Label>
+                    <Input id="m-price" type="number" min={0} step={0.01} placeholder="250" value={addPrice} onChange={(e) => setAddPrice(e.target.value)} required />
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="m-cost">Cost ($)</Label>
-                    <Input id="m-cost" type="number" min={0} step={0.01} placeholder="1.20" value={addCost} onChange={(e) => setAddCost(e.target.value)} />
+                    <Label htmlFor="m-cost">Cost (KGS)</Label>
+                    <Input id="m-cost" type="number" min={0} step={0.01} placeholder="120" value={addCost} onChange={(e) => setAddCost(e.target.value)} />
                   </div>
                 </div>
               </div>
@@ -324,11 +337,11 @@ export function MenuView({ initialRows, role = "staff" }: MenuViewProps) {
                 </div>
                 <div className="grid grid-cols-3 gap-3">
                   <div className="grid gap-2">
-                    <Label htmlFor="e-price">Price ($)</Label>
+                    <Label htmlFor="e-price">Price (KGS)</Label>
                     <Input id="e-price" type="number" min={0} step={0.01} value={editPrice} onChange={(e) => setEditPrice(e.target.value)} required />
                   </div>
                   <div className="grid gap-2">
-                    <Label htmlFor="e-cost">Cost ($)</Label>
+                    <Label htmlFor="e-cost">Cost (KGS)</Label>
                     <Input id="e-cost" type="number" min={0} step={0.01} value={editCost} onChange={(e) => setEditCost(e.target.value)} />
                   </div>
                   <div className="grid gap-2">
@@ -417,7 +430,7 @@ export function MenuView({ initialRows, role = "staff" }: MenuViewProps) {
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Price</span>
-                <span className="font-medium">${Number(detailRow?.price ?? 0).toFixed(2)}</span>
+                <span className="font-medium">{Number(detailRow?.price ?? 0).toFixed(2)} KGS</span>
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Availability</span>

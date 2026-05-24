@@ -111,7 +111,20 @@ export function InventoryView({ initialRows, role, history }: InventoryViewProps
   const [deleteTarget, setDeleteTarget] = React.useState<InventoryRow | null>(null)
   const [deleting, setDeleting] = React.useState(false)
 
-  React.useEffect(() => { setRows(initialRows) }, [initialRows])
+  const groupedRows = React.useMemo(() => {
+    const map = new Map<string, InventoryRow[]>()
+    for (const row of rows) {
+      const category = row.category || "Other"
+      if (!map.has(category)) map.set(category, [])
+      map.get(category)!.push(row)
+    }
+    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]))
+  }, [rows])
+
+  const lowRows = React.useMemo(
+    () => rows.filter((row) => row.status === "Low" || row.status === "Critical"),
+    [rows],
+  )
 
   function resetAddForm() {
     setName(""); setCategory(""); setQuantity(""); setUnit(""); setMinQty("5"); setError(null)
@@ -240,78 +253,116 @@ export function InventoryView({ initialRows, role, history }: InventoryViewProps
             <p className="text-muted-foreground text-sm">No inventory items yet.</p>
           </div>
         ) : (
-          <div className="rounded-xl border bg-card ring-1 ring-foreground/10 overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead>Item Name</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead className="text-right">Quantity</TableHead>
-                  <TableHead>Unit</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="w-44">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {rows.map((row) => (
-                  <TableRow key={row.id}>
-                    <TableCell className="font-medium">{row.name}</TableCell>
-                    <TableCell className="text-muted-foreground">{row.category}</TableCell>
-                    <TableCell className="text-right tabular-nums">{row.quantity}</TableCell>
-                    <TableCell>{row.unit}</TableCell>
-                    <TableCell><StatusBadge status={row.status} /></TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="size-8"
-                          title="Reduce stock"
-                          disabled={busyId === row.id}
-                          onClick={() => openAdjust(row, "subtract")}
-                        >
-                          <Minus className="size-3.5" aria-hidden />
-                        </Button>
-                        {canWrite && (
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="size-8"
-                            title="Add stock"
-                            disabled={busyId === row.id}
-                            onClick={() => openAdjust(row, "add")}
-                          >
-                            <Plus className="size-3.5" aria-hidden />
-                          </Button>
-                        )}
-                        {canWrite && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="size-8"
-                            title="Edit"
-                            onClick={() => openEdit(row)}
-                          >
-                            <Pencil className="size-4" aria-hidden />
-                          </Button>
-                        )}
-                        {canWrite && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="size-8 text-muted-foreground hover:text-destructive"
-                            title="Delete"
-                            onClick={() => setDeleteTarget(row)}
-                          >
-                            <Trash2 className="size-4" aria-hidden />
-                          </Button>
-                        )}
+          <div className="space-y-5">
+            {lowRows.length > 0 && (
+              <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 ring-1 ring-amber-500/10">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div>
+                    <h2 className="font-semibold text-amber-700 dark:text-amber-300">Low items</h2>
+                    <p className="text-sm text-muted-foreground">Products that need to be ordered soon.</p>
+                  </div>
+                  <Badge variant="outline" className="border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300">
+                    {lowRows.length} items
+                  </Badge>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {lowRows.map((row) => (
+                    <div key={row.id} className="rounded-xl border bg-card p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-medium">{row.name}</p>
+                          <p className="text-xs text-muted-foreground">{row.category}</p>
+                        </div>
+                        <StatusBadge status={row.status} />
                       </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                      <div className="mt-3 flex items-end justify-between gap-3">
+                        <p className="text-sm text-muted-foreground">
+                          Left: <span className="font-semibold text-foreground">{row.quantity} {row.unit}</span>
+                        </p>
+                        <p className="text-xs text-muted-foreground">min {row.min_quantity}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {groupedRows.map(([category, categoryRows]) => (
+              <div key={category} className="rounded-xl border bg-card ring-1 ring-foreground/10 overflow-x-auto">
+                <div className="border-b px-4 py-3">
+                  <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">{category}</h2>
+                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead>Item Name</TableHead>
+                      <TableHead className="text-right">Quantity</TableHead>
+                      <TableHead>Unit</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="w-44">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {categoryRows.map((row) => (
+                      <TableRow key={row.id}>
+                        <TableCell className="font-medium">{row.name}</TableCell>
+                        <TableCell className="text-right tabular-nums">{row.quantity}</TableCell>
+                        <TableCell>{row.unit}</TableCell>
+                        <TableCell><StatusBadge status={row.status} /></TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="size-8"
+                              title="Reduce stock"
+                              disabled={busyId === row.id}
+                              onClick={() => openAdjust(row, "subtract")}
+                            >
+                              <Minus className="size-3.5" aria-hidden />
+                            </Button>
+                            {canWrite && (
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="size-8"
+                                title="Add stock"
+                                disabled={busyId === row.id}
+                                onClick={() => openAdjust(row, "add")}
+                              >
+                                <Plus className="size-3.5" aria-hidden />
+                              </Button>
+                            )}
+                            {canWrite && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="size-8"
+                                title="Edit"
+                                onClick={() => openEdit(row)}
+                              >
+                                <Pencil className="size-4" aria-hidden />
+                              </Button>
+                            )}
+                            {canWrite && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="size-8 text-muted-foreground hover:text-destructive"
+                                title="Delete"
+                                onClick={() => setDeleteTarget(row)}
+                              >
+                                <Trash2 className="size-4" aria-hidden />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            ))}
           </div>
         )
       )}
