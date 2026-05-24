@@ -4,9 +4,10 @@ import { revalidatePath } from "next/cache"
 
 import { logActivity } from "@/lib/audit"
 import { requirePermission } from "@/lib/rbac.server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
 
-export type TaskActionResult = { ok: true } | { ok: false; error: string }
+export type TaskActionResult<T = undefined> = T extends undefined ? { ok: true } | { ok: false; error: string } : { ok: true; data: T } | { ok: false; error: string }
 
 export async function addTask(input: {
   title: string
@@ -66,15 +67,20 @@ export async function assignTask(taskId: string, assigneeId: string | null): Pro
   return { ok: true }
 }
 
-export async function startTask(taskId: string): Promise<TaskActionResult> {
+export async function startTask(taskId: string): Promise<TaskActionResult<{ assigned_to: string; started_at: string }>> {
   const ctx = await requirePermission("tasks.start")
-  const supabase = await createClient()
+  const supabase = createAdminClient() ?? await createClient()
   // Read task to know if unassigned (Everyone) — staff auto-claims it.
   const { data: task } = await supabase
     .from("tasks")
-    .select("assigned_to")
+    .select("assigned_to, status")
     .eq("id", taskId)
     .single()
+  if (!task) return { ok: false, error: "Task not found" }
+  if (task.status !== "pending") return { ok: false, error: "Task was already started" }
+  if (ctx.role === "staff" && task.assigned_to && task.assigned_to !== ctx.profileId) {
+    return { ok: false, error: "This task is assigned to another worker" }
+  }
   const claim = task && task.assigned_to == null
   const now = new Date().toISOString()
   const { error } = await supabase
@@ -85,6 +91,7 @@ export async function startTask(taskId: string): Promise<TaskActionResult> {
       ...(claim ? { assigned_to: ctx.profileId, assigned_at: now } : {}),
     })
     .eq("id", taskId)
+    .eq("status", "pending")
   if (error) return { ok: false, error: error.message }
 
   await logActivity({
@@ -94,12 +101,21 @@ export async function startTask(taskId: string): Promise<TaskActionResult> {
     ctx,
   })
   revalidatePath("/tasks")
-  return { ok: true }
+  return { ok: true, data: { assigned_to: task?.assigned_to ?? ctx.profileId, started_at: now } }
 }
 
 export async function completeTask(taskId: string): Promise<TaskActionResult> {
   const ctx = await requirePermission("tasks.complete")
-  const supabase = await createClient()
+  const supabase = createAdminClient() ?? await createClient()
+  const { data: task } = await supabase
+    .from("tasks")
+    .select("assigned_to, status")
+    .eq("id", taskId)
+    .single()
+  if (!task) return { ok: false, error: "Task not found" }
+  if (ctx.role === "staff" && task.assigned_to !== ctx.profileId) {
+    return { ok: false, error: "Only the assigned worker can complete this task" }
+  }
   const { error } = await supabase
     .from("tasks")
     .update({

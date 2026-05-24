@@ -66,6 +66,7 @@ export function can(role: Role | null | undefined, perm: Permission): boolean {
  */
 export const ROUTE_ACCESS: Record<string, readonly Role[]> = {
   "/dashboard": ["admin", "manager"],
+  "/revenue": ["admin", "manager"],
   "/analytics": ["admin", "manager"],
   "/inventory": ["admin", "manager", "staff"],
   "/menu": ["admin", "manager", "staff"],

@@ -29,6 +29,9 @@ export type AuditAction =
   | "staff.create"
   | "staff.update"
   | "staff.delete"
+  | "shift.create"
+  | "shift.update"
+  | "shift.delete"
 
 export type AuditEntityType =
   | "user"
@@ -36,6 +39,7 @@ export type AuditEntityType =
   | "product"
   | "menu_item"
   | "staff"
+  | "shift"
 
 export type LogActivityInput = {
   action: AuditAction
