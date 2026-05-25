@@ -24,6 +24,7 @@ const SIDEBAR_WIDTH = "16rem"
 const SIDEBAR_WIDTH_MOBILE = "18rem"
 const SIDEBAR_WIDTH_ICON = "4rem"
 const SIDEBAR_KEYBOARD_SHORTCUT = "b"
+const SIDEBAR_MOBILE_BREAKPOINT = "(max-width: 767px)"
 
 type SidebarContext = {
   state: "expanded" | "collapsed"
@@ -36,6 +37,28 @@ type SidebarContext = {
 }
 
 const SidebarContext = React.createContext<SidebarContext | null>(null)
+
+function subscribeToMobileBreakpoint(callback: () => void) {
+  const media = window.matchMedia(SIDEBAR_MOBILE_BREAKPOINT)
+  media.addEventListener("change", callback)
+  return () => media.removeEventListener("change", callback)
+}
+
+function getMobileSnapshot() {
+  return window.matchMedia(SIDEBAR_MOBILE_BREAKPOINT).matches
+}
+
+function getServerMobileSnapshot() {
+  return false
+}
+
+function useIsMobile() {
+  return React.useSyncExternalStore(
+    subscribeToMobileBreakpoint,
+    getMobileSnapshot,
+    getServerMobileSnapshot
+  )
+}
 
 function useSidebar() {
   const context = React.useContext(SidebarContext)
@@ -66,7 +89,7 @@ const SidebarProvider = React.forwardRef<
     },
     ref
   ) => {
-    const isMobile = false // SSR-safe, will be set in effect if needed
+    const isMobile = useIsMobile()
     const [openMobile, setOpenMobile] = React.useState(false)
 
     const [_open, _setOpen] = React.useState(defaultOpen)
@@ -84,8 +107,11 @@ const SidebarProvider = React.forwardRef<
     )
 
     const toggleSidebar = React.useCallback(() => {
+      if (isMobile) {
+        return setOpenMobile((open) => !open)
+      }
       return setOpen((open) => !open)
-    }, [setOpen])
+    }, [isMobile, setOpen, setOpenMobile])
 
     const state = open ? "expanded" : "collapsed"
 
